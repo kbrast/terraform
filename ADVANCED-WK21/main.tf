@@ -1,28 +1,3 @@
-variable "aws_region" {
-  default = "us-east-1"
-}
-
-variable "vpc_id" {
-  default = "vpc-xxxxxxxx"
-}
-
-variable "subnet_ids" {
-  type    = list(string)
-  default = ["subnet-xxxxxxxx", "subnet-yyyyyyyy"]
-}
-
-variable "key_name" {
-  default = "my-key"
-}
-
-variable "bucket_name" {
-  default = "my-bucket"
-}
-
-provider "aws" {
-  region = var.aws_region
-}
-
 resource "aws_security_group" "allow_http" {
   name        = "allow_http"
   description = "Allow HTTP traffic"
@@ -45,7 +20,7 @@ resource "aws_security_group" "allow_http" {
 
 resource "aws_launch_configuration" "webserver" {
   name          = "webserver"
-  image_id      = data.aws_ami.amazon_linux.id
+  image_id      = "ami-04581fbf744a7d11f"
   instance_type = "t2.micro"
   key_name      = var.key_name
 
@@ -53,11 +28,11 @@ resource "aws_launch_configuration" "webserver" {
 
   user_data = <<-EOF
               #!/bin/bash
-              yum update -y
-              yum install -y httpd
-              service httpd start
-              chkconfig httpd on
-              echo "<html><body><h1>Hello World</h1></body></html>" > /var/www/html/index.html
+              sudo yum update -y
+              sudo yum install -y httpd
+              sudo systemctl start httpd
+              sudo systemctl enable httpd
+              sudo echo "<html><body><h1>Hello World and Red Team</h1></body></html>" > /var/www/html/index.html
               EOF
 
   lifecycle {
@@ -80,10 +55,6 @@ resource "aws_autoscaling_group" "webserver_asg" {
     value               = "webserver_asg_instance"
     propagate_at_launch = true
   }
-}
-
-resource "aws_s3_bucket" "terraform_state" {
-  bucket        = var.bucket_name
 }
 
 resource "aws_lb" "webserver_alb" {
@@ -148,12 +119,4 @@ resource "aws_security_group_rule" "allow_http_from_alb" {
 
 output "alb_dns_name" {
   value = aws_lb.webserver_alb.dns_name
-}
-
-terraform {
-  backend "s3" {
-    bucket = var.bucket_name
-    key    = "terraform.tfstate"
-    region = var.aws_region
-  }
 }
